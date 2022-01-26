@@ -1,25 +1,21 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace antifreeze_server
+namespace AntifreezeServer
 {
 
     /// <summary>
     /// parsing args given to Program
     /// implements default parameter values ​​and validation
     /// </summary>
-    class GameParameters
+    class Parameters
     {
         public int port { get; set; } = 8888;
         public int grid { get; set; } = 10;
         public int units { get; set; } = 3;
         public int tps { get; set; } = 20;
-        public double speed { get; set; } = 0.5;
+        public float speed { get; set; } = 0.5f;
 
-        public GameParameters(string[] args)
+        public Parameters(string[] args)
         {
 
             int len = args.Length / 2;
@@ -52,8 +48,8 @@ namespace antifreeze_server
                         break;
                     case "speed":
                         speed = float.Parse(val);
-                        if (speed < 0.1) speed = 0.1;
-                        if (speed > 10.0) speed = 10.0;
+                        if (speed < 0.1f) speed = 0.1f;
+                        if (speed > 10f) speed = 10f;
                         break;
                 }
 
@@ -71,7 +67,7 @@ namespace antifreeze_server
             Console.WriteLine("                       grid : {0}x{0}", grid);
             Console.WriteLine("                      units : {0}", units);
             Console.WriteLine("     tps (ticks per second) : {0}", tps);
-            Console.WriteLine("      speed (unit movement) : {0}", units);
+            Console.WriteLine("        speed (tick factor) : {0}", units);
             Console.WriteLine();
             Console.WriteLine();
 

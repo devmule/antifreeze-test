@@ -1,32 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
-namespace antifreeze_server
+namespace AntifreezeServer
 {
 
     class ServerListener
     {
 
-        private TcpListener server = null;
-        private List<TcpClient> tcpClientsList = new List<TcpClient>();
+        private TcpListener Server = null;
+        private List<TcpClient> TcpClientsList = new List<TcpClient>();
 
 
         public void Start(int port)
         {
 
-            if (server != null) return;
+            if (Server != null) return;
 
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             IPAddress localAddr = ipHostInfo.AddressList[0];
-            server = new TcpListener(localAddr, port);
-            server.Start();
+            Server = new TcpListener(localAddr, port);
+            Server.Start();
 
             // listening connections in separate thread
             Console.WriteLine("Listening at port {0}", port);
@@ -42,13 +39,13 @@ namespace antifreeze_server
                 while (true)
                 {
 
-                    TcpClient client = server.AcceptTcpClient();
+                    TcpClient client = Server.AcceptTcpClient();
                     Console.WriteLine("Client connected!");
 
                     Thread t = new Thread(new ParameterizedThreadStart(HandleClient));
                     t.Start(client);
 
-                    tcpClientsList.Add(client);
+                    TcpClientsList.Add(client);
 
                     // emit connection
                     ClientConnectedEventArgs e = new ClientConnectedEventArgs();
@@ -60,58 +57,58 @@ namespace antifreeze_server
             catch (SocketException e)
             {
                 Console.WriteLine("SocketException: {0}", e);
-                server.Stop();
+                Server.Stop();
             }
         }
 
         private void HandleClient(Object obj)
         {
-            TcpClient client = (TcpClient)obj;
+            var client = (TcpClient)obj;
             var stream = client.GetStream();
 
-            string imei = String.Empty;
-
-            string data = null;
+            string str = null;
             Byte[] bytes = new Byte[256];
             int i;
+
             try
             {
                 while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
                 {
                     string hex = BitConverter.ToString(bytes);
-                    data = Encoding.ASCII.GetString(bytes, 0, i);
+                    str = Encoding.ASCII.GetString(bytes, 0, i);
+                    Message message = MessageSerializator.Deserialize(str);
 
-                    // emit message
+                    // emit Message
                     MessageReceivedEventArgs e = new MessageReceivedEventArgs();
-                    e.MessageText = data;
+                    e.Message = message;
                     if (OnMessageReceived != null) OnMessageReceived(this, e);
 
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine("HandleDeivce Exception: {0}", e.ToString());
-                client.Close();
+                Console.WriteLine("HandleClient Exception: {0}", e.ToString());
             }
 
             client.Close();
-            tcpClientsList.Remove(client);
+            TcpClientsList.Remove(client);
 
             Console.WriteLine("Client disconnected!");
 
         }
 
-        public void Broadcast(string message)
+        public void Broadcast(Message message)
         {
 
-            foreach (TcpClient client in tcpClientsList) Send(client, message);
+            foreach (TcpClient client in TcpClientsList) Send(client, message);
 
         }
 
-        public void Send(TcpClient client, string message)
+        public void Send(TcpClient client, Message message)
         {
 
-            Byte[] data = Encoding.ASCII.GetBytes(message);
+            string str = MessageSerializator.Serialize(message);
+            Byte[] data = Encoding.ASCII.GetBytes(str);
             NetworkStream stream = client.GetStream();
             stream.Write(data, 0, data.Length);
 
@@ -127,7 +124,7 @@ namespace antifreeze_server
 
     public class MessageReceivedEventArgs : EventArgs
     {
-        public string MessageText { get; set; }
+        public Message Message { get; set; }
     }
 
     public class ClientConnectedEventArgs : EventArgs
