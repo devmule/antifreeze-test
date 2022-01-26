@@ -10,11 +10,14 @@ namespace AntifreezeServer
     {
 
         private Timer timer = null;
+        private AntiGame.Grid grid;
 
 
         public Game(int gridSize, int unitsCount, double unitSpeed)
         {
 
+            grid = new AntiGame.Grid(gridSize, unitsCount, unitSpeed);
+            grid.Test_BFSFindPath();
 
         }
 
@@ -27,6 +30,12 @@ namespace AntifreezeServer
         {
 
             Message msg = new Message();
+
+            msg.state = new GameStateDTO();
+            msg.state.grid = grid.Size;
+            msg.state.units = grid.Units.Count;
+
+            msg.positions = new List<UnitPositioningDTO>();
 
             // todo
 
