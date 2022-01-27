@@ -5,47 +5,47 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-namespace AntifreezeServer
+namespace AntifreezeServer.Networking
 {
 
-    class ServerListener
+    class TcpServer : INetwork
     {
 
-        private TcpListener Server = null;
-        private List<TcpClient> TcpClientsList = new List<TcpClient>();
+        private TcpListener _tcpListener = null;
+        private List<TcpClient> _tcpClientsList = new List<TcpClient>();
 
 
         public void Start(int port)
         {
 
-            if (Server != null) return;
+            if (_tcpListener != null) return;
 
             IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             IPAddress localAddr = ipHostInfo.AddressList[0];
-            Server = new TcpListener(localAddr, port);
-            Server.Start();
+            _tcpListener = new TcpListener(localAddr, port);
+            _tcpListener.Start();
 
             // listening connections in separate thread
-            Console.WriteLine("Listening at port {0}", port);
-            Thread t = new Thread(new ThreadStart(Listening));
+            Console.WriteLine("Tcp server listening at port {0}", port);
+            Thread t = new Thread(new ThreadStart(_startListening));
             t.Start();
 
         }
 
-        private void Listening()
+        private void _startListening()
         {
             try
             {
                 while (true)
                 {
 
-                    TcpClient client = Server.AcceptTcpClient();
+                    TcpClient client = _tcpListener.AcceptTcpClient();
                     Console.WriteLine("Client connected!");
 
-                    Thread t = new Thread(new ParameterizedThreadStart(HandleClient));
+                    Thread t = new Thread(new ParameterizedThreadStart(_handleClient));
                     t.Start(client);
 
-                    TcpClientsList.Add(client);
+                    _tcpClientsList.Add(client);
 
                     // emit connection
                     ClientConnectedEventArgs e = new ClientConnectedEventArgs();
@@ -57,11 +57,11 @@ namespace AntifreezeServer
             catch (SocketException e)
             {
                 Console.WriteLine("SocketException: {0}", e);
-                Server.Stop();
+                _tcpListener.Stop();
             }
         }
 
-        private void HandleClient(Object obj)
+        private void _handleClient(Object obj)
         {
             var client = (TcpClient)obj;
             var stream = client.GetStream();
@@ -79,7 +79,7 @@ namespace AntifreezeServer
                     Message message = MessageSerializator.Deserialize(str);
 
                     // emit Message
-                    MessageReceivedEventArgs e = new MessageReceivedEventArgs();
+                    var e = new MessageEventArgs();
                     e.Message = message;
                     if (OnMessageReceived != null) OnMessageReceived(this, e);
 
@@ -91,7 +91,7 @@ namespace AntifreezeServer
             }
 
             client.Close();
-            TcpClientsList.Remove(client);
+            _tcpClientsList.Remove(client);
 
             Console.WriteLine("Client disconnected!");
 
@@ -100,7 +100,7 @@ namespace AntifreezeServer
         public void Broadcast(Message message)
         {
 
-            foreach (TcpClient client in TcpClientsList) Send(client, message);
+            foreach (TcpClient client in _tcpClientsList) Send(client, message);
 
         }
 
@@ -114,22 +114,10 @@ namespace AntifreezeServer
 
         }
 
-        public event EventHandler<MessageReceivedEventArgs> OnMessageReceived;
+        public event EventHandler<MessageEventArgs> OnMessageReceived;
 
         public event EventHandler<ClientConnectedEventArgs> OnClientConnected;
 
-    }
-
-
-
-    public class MessageReceivedEventArgs : EventArgs
-    {
-        public Message Message { get; set; }
-    }
-
-    public class ClientConnectedEventArgs : EventArgs
-    {
-        public TcpClient Client { get; set; }
     }
 
 

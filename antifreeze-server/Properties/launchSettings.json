@@ -1,8 +1,7 @@
 {
   "profiles": {
     "antifreeze-server": {
-      "commandName": "Project",
-      "commandLineArgs": "port 8080 grid 12 units 5"
+      "commandName": "Project"
     }
   }
 }

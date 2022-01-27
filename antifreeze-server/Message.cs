@@ -14,7 +14,6 @@ namespace AntifreezeServer
     {
         public static string Serialize(Message msg)
         {
-
             DataContractJsonSerializer serializer = new DataContractJsonSerializer(msg.GetType());
             MemoryStream ms = new MemoryStream();
 
@@ -45,29 +44,50 @@ namespace AntifreezeServer
         }
     }
 
+    public class MessageEventArgs : EventArgs
+    {
+        public Message Message { get; set; }
+    }
+
 
     [DataContract]
     public class Message
     {
-        [DataMember(EmitDefaultValue = false)]
-        public GameStateDTO? state;
-        [DataMember(EmitDefaultValue = false)]
-        public List<UnitPositioningDTO>? positions;
+        [DataMember(EmitDefaultValue = false, IsRequired = false)]
+        public GameStateDTO GameState;
+        [DataMember(EmitDefaultValue = false, IsRequired = false)]
+        public List<UnitStatusDTO> UnitsPositions;
+        [DataMember(EmitDefaultValue = false, IsRequired = false)]
+        public List<UnitDestinationOrderDTO> UnitsDestinationOrders;
     }
 
-
-    public class UnitPositioningDTO
+    [DataContract]
+    public class UnitStatusDTO
     {
-        public int id { get; set; }
-        public Vector2 coords { get; set; }
+        [DataMember]
+        public int Uid { get; set; }
+        [DataMember]
+        public Vector2 Coords { get; set; }
+        [DataMember]
         public bool IsMoving { get; set; }
     }
 
+    [DataContract]
+    public class UnitDestinationOrderDTO
+    {
+        [DataMember]
+        public int UnitUid { get; set; }
+        [DataMember]
+        public int CellUid { get; set; }
+    }
 
+    [DataContract]
     public class GameStateDTO
     {
-        public int grid { get; set; }
-        public int units { get; set; }
+        [DataMember]
+        public int GridSize { get; set; }
+        [DataMember]
+        public int UnitsCount { get; set; }
     }
 
 
