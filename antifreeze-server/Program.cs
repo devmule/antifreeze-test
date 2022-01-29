@@ -1,16 +1,16 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace AntifreezeServer
 {
     class Program
     {
 
-        private static Networking.INetwork server;
+        private static Networking.SocketServer server;
         private static AntiGame.Game game;
 
         static void Main(string[] args)
         {
-
 
             Random rnd = new Random();
 
@@ -18,34 +18,40 @@ namespace AntifreezeServer
             int gridSize = rnd.Next(7, 13);     // NxN grid, 7 <= N <= 12
             int unitsCount = rnd.Next(1, 6);    // 1 <= units <= 5
 
+            Console.WriteLine("AntiGame generated values:");
+            Console.WriteLine("Grid size : {0}x{0}", gridSize);
+            Console.WriteLine("UnitsCount: {0}", unitsCount);
+            Console.WriteLine();
 
-            server = new Networking.TcpServer();
+
+            server = new Networking.SocketServer();
             server.OnClientConnected += Server_OnClientConnected;
-            server.OnMessageReceived += Server_OnMessageReceived;
 
 
             game = new AntiGame.Game(gridSize, unitsCount);
             game.OnTick += Game_OnTick;
 
 
-            server.Start(8080);
+            server.Start("localhost", 8080);
             game.Start(tps);
 
         }
 
-        private static void Server_OnMessageReceived(object sender, MessageEventArgs e)
+        private static void Server_OnClientConnected(Networking.SocketClientConnection clientConnection)
         {
-            game.ApplyUserUnput(e.Message);
+            clientConnection.OnMessageReceived += ClientConnection_OnMessageReceived;
+            var gameStateString = game.GetSerializedGameState();
+            clientConnection.Send(gameStateString);
         }
 
-        private static void Server_OnClientConnected(object sender, Networking.ClientConnectedEventArgs e)
+        private static void ClientConnection_OnMessageReceived(string msg)
         {
-            server.Send(e.Client, game.GetGameState());
+            game.ApplyClientMessage(msg);
         }
 
-        private static void Game_OnTick(object sender, MessageEventArgs e)
+        private static void Game_OnTick(string message)
         {
-            server.Broadcast(e.Message);
+            server.Broadcast(message);
         }
     }
 }

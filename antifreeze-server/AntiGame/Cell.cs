@@ -6,7 +6,7 @@ namespace AntifreezeServer.AntiGame
     {
         public int Uid { get; private set; }
         public Vector2 Coords { get; private set; }
-        public bool IsOccupied { get; set; }
+        public bool IsOccupied = false;
 
         public Cell(int uid, Vector2 coords)
         {

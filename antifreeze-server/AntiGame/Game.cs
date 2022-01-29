@@ -31,57 +31,66 @@ namespace AntifreezeServer.AntiGame
             // randomly place units
             Random rnd = new Random();
             int emptyPositionIndex, positionIndex, i, j;
-            Cell cell;
             for (i = 0; i < unitsCount; i++)
             {
+                Cell cell;
                 emptyPositionIndex = rnd.Next(cellsCount - i);
                 positionIndex = 0;
-                for (j = 0; j < cellsCount; j++)
+                for (j = 0; j < cellsCount - i; j++)
                 {
-                    positionIndex++;
-                    cell = _grid.Cells[positionIndex];
-                    if (cell.IsOccupied) positionIndex++;
+                    cell = _grid.Cells[j];
+                    if (cell.IsOccupied) continue;
                     if (emptyPositionIndex == positionIndex) break;
+                    positionIndex++;
                 }
 
-                cell = _grid.Cells[positionIndex];
+                cell = _grid.Cells[positionIndex]; // System.ArgumentOutOfRangeException: 'Index was out of range. Must be non-negative and less than the size of the collection. Arg_ParamName_Name'
                 Unit unit = new Unit(i, cell);
                 _units.Add(unit);
 
+                unit.SetDestinationCell(_grid.Cells[0]);
 
             }
 
         }
 
-        public void ApplyUserUnput(Message msg)
+        public void ApplyClientMessage(string stringMessage)
         {
-
             try
             {
+                var message = MessageSerializator.Deserialize(stringMessage);
+                var orders = message.UnitsDestinationOrders;
+                ApplyUserUnput(orders);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("user input deserialization error: {0}", e.ToString());
+            }
+        }
 
-                if (msg.UnitsDestinationOrders == null) return;
+        public void ApplyUserUnput(List<UnitDestinationOrderDTO> unitsDestOrders)
+        {
+            try
+            {
+                if (unitsDestOrders == null) { return; }
 
-                for (int i = 0; i < msg.UnitsDestinationOrders.Count; i++)
+                for (int i = 0; i < unitsDestOrders.Count; i++)
                 {
-
-                    var order = msg.UnitsDestinationOrders[i];
+                    var order = unitsDestOrders[i];
 
                     var unit = _units[order.UnitUid];
                     var cell = _grid.Cells[order.CellUid];
 
                     unit.SetDestinationCell(cell);
-
                 }
-
             }
             catch (Exception e)
             {
-                Console.WriteLine("user input error:\n{0}", e.ToString());
+                Console.WriteLine("user input error: {0}", e.ToString());
             }
-
         }
 
-        public Message GetGameState()
+        public string GetSerializedGameState()
         {
 
             Message msg = new Message();
@@ -90,7 +99,7 @@ namespace AntifreezeServer.AntiGame
             msg.GameState.GridSize = _grid.Size;
             msg.GameState.UnitsCount = _units.Count;
 
-            msg.UnitsPositions = new List<UnitStatusDTO>();
+            msg.UnitsStatuses = new List<UnitStatusDTO>();
 
             for (int i = 0; i < _units.Count; i++)
             {
@@ -99,14 +108,16 @@ namespace AntifreezeServer.AntiGame
                 var unitStatus = new UnitStatusDTO();
 
                 unitStatus.Uid = unit.Uid;
-                unitStatus.Coords = unit.Coords;
+                unitStatus.X = unit.Coords.X;
+                unitStatus.Y = unit.Coords.Y;
                 unitStatus.IsMoving = unit.IsMoving;
 
-                msg.UnitsPositions.Add(unitStatus);
+                msg.UnitsStatuses.Add(unitStatus);
 
             }
 
-            return msg;
+            string messageString = MessageSerializator.Serialize(msg);
+            return messageString;
 
         }
 
@@ -115,7 +126,7 @@ namespace AntifreezeServer.AntiGame
 
             // timer runs in different thread !
 
-            if (_timer != null) return;
+            if (_timer != null) { return; }
 
             _timer = new Timer();
             _timer.Elapsed += (sender, args) => _tick();
@@ -125,22 +136,36 @@ namespace AntifreezeServer.AntiGame
 
         }
 
-        public event EventHandler<MessageEventArgs> OnTick;
+        public event Action<string> OnTick;
 
         private void _tick()
         {
 
+            var dt = (float)_timer.Interval / 1000;
+
             for (int i = 0; i < _units.Count; i++)
             {
-                _units[i].Tick(_grid, (float)_timer.Interval);
+                _units[i].Tick(_grid, dt);
             }
 
 
-
             Message msg = new Message();
-            var e = new MessageEventArgs();
-            e.Message = msg;
-            OnTick(this, e);
+
+            msg.UnitsStatuses = new List<UnitStatusDTO>();
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                var unit = _units[i];
+                var unitStatus = new UnitStatusDTO();
+                unitStatus.Uid = unit.Uid;
+                unitStatus.IsMoving = unit.IsMoving;
+                unitStatus.X = unit.Coords.X;
+                unitStatus.Y = unit.Coords.Y;
+                msg.UnitsStatuses.Add(unitStatus);
+            }
+
+            string messageString = MessageSerializator.Serialize(msg);
+            OnTick(messageString);
 
         }
 

@@ -6,21 +6,30 @@ namespace AntifreezeServer.Networking
     public interface INetwork
     {
         
-        public void Start(int port);
+        public void Start(string host, int port);
 
-        public void Send(TcpClient client, Message message);
-
-        public void Broadcast(Message message);
-
-        public event EventHandler<MessageEventArgs> OnMessageReceived;
+        public void Broadcast(string message);
 
         public event EventHandler<ClientConnectedEventArgs> OnClientConnected;
 
     }
 
+    public interface IClientConnection
+    {
+
+        public void Close();
+
+        public void Send(string message);
+
+        public Action<string> OnMessageReceived { get; set; }
+
+        public Action<int> OnClose { get; set; }
+
+    }
+
     public class ClientConnectedEventArgs : EventArgs
     {
-        public TcpClient Client { get; set; }
+        public IClientConnection ClientConnection { get; set; }
     }
 
 }
