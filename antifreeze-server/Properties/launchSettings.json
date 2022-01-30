@@ -1,7 +1,12 @@
 {
   "profiles": {
-    "antifreeze-server": {
-      "commandName": "Project"
+    "WSL": {
+      "commandName": "WSL2"
+    },
+    "AntifreezeServer": {
+      "commandName": "Executable",
+      "executablePath": "D:\\Projects\\antifreeze-test\\antifreeze-server\\bin\\Debug\\net5.0\\antifreeze-server.exe",
+      "workingDirectory": "D:\\Projects\\antifreeze-test\\antifreeze-server"
     }
   }
 }

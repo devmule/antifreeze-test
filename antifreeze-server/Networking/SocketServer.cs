@@ -10,23 +10,25 @@ using System.Threading.Tasks;
 namespace AntifreezeServer.Networking
 {
 
-    class SocketClientConnection
+    class SocketClientConnection : IClientConnection
     {
 
-        // todo ping
-
-        private PacketProtocol _packetProtocol = new PacketProtocol(1024);
+        private MessageProtocol _packetProtocol = new MessageProtocol();
         private Socket _socketConnection;
 
         public SocketClientConnection(Socket socket)
         {
             _socketConnection = socket;
 
-            _packetProtocol.MessageArrived += _onMessageArrived;
+            _packetProtocol.MessageReceived += _onMessageReceived;
 
             var t = new Thread(new ThreadStart(_startListening));
             t.Start();
         }
+
+        public event EventHandler<OnMessageEventArgs> OnMessageReceived;
+
+        public event EventHandler<OnConnectionClosedEventArgs> OnClose;
 
         private void _startListening()
         {
@@ -56,10 +58,10 @@ namespace AntifreezeServer.Networking
 
         }
 
-        private void _onMessageArrived(byte[] data)
+        private void _onMessageReceived(byte[] data)
         {
             var str = Encoding.UTF8.GetString(data, 0, data.Length);
-            OnMessageReceived?.Invoke(str);
+            OnMessageReceived?.Invoke(this, new OnMessageEventArgs { Message = str });
         }
 
         public void Close()
@@ -73,7 +75,7 @@ namespace AntifreezeServer.Networking
             _socketConnection.Close();
             _socketConnection = null;
 
-            if (OnClose != null) { OnClose(0); }
+            OnClose?.Invoke(this, new OnConnectionClosedEventArgs { });
 
         }
 
@@ -82,24 +84,21 @@ namespace AntifreezeServer.Networking
 
             if (_socketConnection == null) return;
             if (!_socketConnection.Connected) return;
-
             var bytes = Encoding.UTF8.GetBytes(msg);
 
-            _socketConnection.Send(PacketProtocol.WrapMessage(bytes));
+            _socketConnection.Send(MessageProtocol.WrapData(bytes));
 
         }
 
-        public Action<string> OnMessageReceived;
-
-        public Action<int> OnClose;
-
     }
 
-    class SocketServer
+    class SocketServer : INetwork
     {
 
         private Socket listener;
         private List<SocketClientConnection> _clients = new List<SocketClientConnection>();
+
+        public event EventHandler<ClientConnectedEventArgs> OnClientConnected;
 
         public void Start(string hostName, int port) 
         {
@@ -139,10 +138,12 @@ namespace AntifreezeServer.Networking
 
                     Socket clientSocket = listener.Accept();
                     Console.WriteLine("Client connected!");
+
                     var clientConnection = new SocketClientConnection(clientSocket);
-                    clientConnection.OnClose += (int status) => _clients.Remove(clientConnection);
+                    clientConnection.OnClose += (sencer, e) => _clients.Remove(clientConnection);
                     _clients.Add(clientConnection);
-                    OnClientConnected?.Invoke(clientConnection);
+
+                    OnClientConnected?.Invoke(this, new ClientConnectedEventArgs { ClientConnection = clientConnection });
 
                 }
             }
@@ -162,6 +163,5 @@ namespace AntifreezeServer.Networking
                 client.Send(msg);
             }
         }
-        public Action<SocketClientConnection> OnClientConnected;
     }
 }

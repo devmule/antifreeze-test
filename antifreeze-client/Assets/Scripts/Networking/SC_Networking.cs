@@ -16,36 +16,31 @@ public class SC_Networking : MonoBehaviour
     [SerializeField] public string HostAddress = "localhost";
     [SerializeField] public int Port = 8080;
     [SerializeField] public OnMessageEvent OnMessage;
-    private SocketConnection _networkConnection;
-    private List<string> _messageList = new List<string>();
+    private INetwork _networkConnection = new SocketConnection();
+
 
     public void SendMessageToServer(string msg)
     {
-        if (_networkConnection == null) { return; }
         _networkConnection.Send(msg);
     }
 
     // Start is called before the first frame update
     void Start()
     {
-        _networkConnection = new SocketConnection();
-        _networkConnection.InitiateConnection(HostAddress, Port);
-        // UnityEngine.UnityException: get_isPlaying can only be called from the main thread.
-        // so, we adding messages to the external list
-        _networkConnection.OnMessageReceived += (string msg) => { lock (_messageList) { _messageList.Add(msg); } };
+        _networkConnection.Start(HostAddress, Port);
     }
+
+
 
     // Update is called once per frame
     void Update()
     {
-        lock (_messageList)
+        var messages = _networkConnection.CollectMessages();
+
+        for (int i = 0; i < messages.Count; i++)
         {
-            while (_messageList.Count > 0)
-            {
-                string msg = _messageList[0];
-                _messageList.RemoveAt(0);
-                OnMessage?.Invoke(msg);
-            }
+            var message = messages[i];
+            OnMessage?.Invoke(message);
         }
     }
 }

@@ -21,15 +21,24 @@ namespace AntifreezeServer.Networking
 
         public void Send(string message);
 
-        public Action<string> OnMessageReceived { get; set; }
+        public event EventHandler<OnMessageEventArgs> OnMessageReceived;
 
-        public Action<int> OnClose { get; set; }
+        public event EventHandler<OnConnectionClosedEventArgs> OnClose;
 
     }
 
     public class ClientConnectedEventArgs : EventArgs
     {
         public IClientConnection ClientConnection { get; set; }
+    }
+
+    public class OnMessageEventArgs : EventArgs
+    {
+        public string Message { get; set; }
+    }
+
+    public class OnConnectionClosedEventArgs : EventArgs
+    {
     }
 
 }

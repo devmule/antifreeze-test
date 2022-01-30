@@ -7,53 +7,21 @@ using System.Text;
 using System.Threading;
 using UnityEngine;
 
-public class SocketConnection
+public class SocketConnection : INetwork
 {
-    public Action<string> OnMessageReceived;
-    private PacketProtocol _packetProtocol = new PacketProtocol(1024);
+    private List<string> _receivedMessages = new List<string>();
+    private MessageProtocol _messageProtocol = new MessageProtocol();
     private Socket _socketConnection;
 
     public SocketConnection()
     {
-        _packetProtocol.MessageArrived += _onMessageReceived;
-    }
-
-    // must be invoked from outside
-    public void InitiateConnection(string hostAddress, int port)
-    {
-
-        var ipHostInfo = Dns.GetHostEntry(hostAddress);
-        var iPEndPoint = new IPEndPoint(ipHostInfo.AddressList[0], port);
-
-        var t  = new Thread(new ParameterizedThreadStart(_listenConnection));
-        t.Start(iPEndPoint);
-
-    }
-
-    public void BreakConnection()
-    {
-        if (_socketConnection == null) { return; }
-        _socketConnection.Shutdown(SocketShutdown.Both);
-        _socketConnection.Close();
-        _socketConnection = null;
-    }
-
-    public void Send(string msg)
-    {
-
-        if (_socketConnection == null) { return; }
-        if (!_socketConnection.Connected) { return; }
-
-        var bytes = Encoding.UTF8.GetBytes(msg);
-
-        _socketConnection.Send(PacketProtocol.WrapMessage(bytes));
-
+        _messageProtocol.MessageReceived += _onMessageReceived;
     }
 
     private void _onMessageReceived(byte[] data)
     {
-        var str = Encoding.UTF8.GetString(data, 0, data.Length);
-        OnMessageReceived?.Invoke(str);
+        var message = Encoding.UTF8.GetString(data, 0, data.Length);
+        lock (_receivedMessages) { _receivedMessages.Add(message); }
     }
 
     private void _listenConnection(System.Object obj)
@@ -69,7 +37,7 @@ public class SocketConnection
             Debug.Log("Socket connected to " + _socketConnection.RemoteEndPoint.ToString());
 
             int bytesRec;
-            byte[] buffer = new byte[1024];
+            byte[] buffer = new byte[1024 * 4];
 
             try
             {
@@ -78,18 +46,19 @@ public class SocketConnection
 
                     byte[] data = new byte[bytesRec];
 
+
                     Array.Copy(buffer, 0, data, 0, bytesRec);
-                    _packetProtocol.DataReceived(data);
+                    _messageProtocol.DataReceived(data);
 
                 }
             }
             catch (SocketException se)
             {
-                Console.WriteLine(se.ToString());
+                Debug.LogError(se.ToString());
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.ToString());
+                Debug.LogError(e.ToString());
             }
 
         }
@@ -100,4 +69,52 @@ public class SocketConnection
 
     }
 
+    public List<string> CollectMessages()
+    {
+        var returnList = new List<string>();
+
+        lock (_receivedMessages) { 
+
+            while (_receivedMessages.Count > 0)
+            {
+                var message = _receivedMessages[0];
+                _receivedMessages.RemoveAt(0);
+                returnList.Add(message);
+            }
+
+            _receivedMessages.Clear();
+
+        }
+
+        return returnList;
+    }
+
+    public void Start(string hostAddress, int port)
+    {
+        var ipHostInfo = Dns.GetHostEntry(hostAddress);
+        var iPEndPoint = new IPEndPoint(ipHostInfo.AddressList[0], port);
+
+        var t = new Thread(new ParameterizedThreadStart(_listenConnection));
+        t.Start(iPEndPoint);
+    }
+
+    public void Send(string msg)
+    {
+
+        if (_socketConnection == null) { return; }
+        if (!_socketConnection.Connected) { return; }
+
+        var bytes = Encoding.UTF8.GetBytes(msg);
+
+        _socketConnection.Send(MessageProtocol.WrapData(bytes));
+
+    }
+
+    public void Close()
+    {
+        if (_socketConnection == null) { return; }
+        _socketConnection.Shutdown(SocketShutdown.Both);
+        _socketConnection.Close();
+        _socketConnection = null;
+    }
 }

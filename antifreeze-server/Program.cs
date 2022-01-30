@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace AntifreezeServer
 {
     class Program
     {
 
-        private static Networking.SocketServer server;
+        private static Networking.INetwork server;
         private static AntiGame.Game game;
 
         static void Main(string[] args)
@@ -14,7 +13,7 @@ namespace AntifreezeServer
 
             Random rnd = new Random();
 
-            int tps = 30;                       // ticks per second
+            int tps = 15;                       // ticks per second
             int gridSize = rnd.Next(7, 13);     // NxN grid, 7 <= N <= 12
             int unitsCount = rnd.Next(1, 6);    // 1 <= units <= 5
 
@@ -37,16 +36,16 @@ namespace AntifreezeServer
 
         }
 
-        private static void Server_OnClientConnected(Networking.SocketClientConnection clientConnection)
+        private static void Server_OnClientConnected(object sender, Networking.ClientConnectedEventArgs e)
         {
-            clientConnection.OnMessageReceived += ClientConnection_OnMessageReceived;
+            e.ClientConnection.OnMessageReceived += ClientConnection_OnMessageReceived;
             var gameStateString = game.GetSerializedGameState();
-            clientConnection.Send(gameStateString);
+            e.ClientConnection.Send(gameStateString);
         }
 
-        private static void ClientConnection_OnMessageReceived(string msg)
+        private static void ClientConnection_OnMessageReceived(object sender, Networking.OnMessageEventArgs e)
         {
-            game.ApplyClientMessage(msg);
+            game.ApplyClientMessage(e.Message);
         }
 
         private static void Game_OnTick(string message)
