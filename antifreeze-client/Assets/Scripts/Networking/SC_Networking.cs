@@ -12,6 +12,7 @@ public class SC_Networking : MonoBehaviour
     [System.Serializable]
     public class OnMessageEvent : UnityEvent<string>{ }
 
+
     [SerializeField] public string HostAddress = "localhost";
     [SerializeField] public int Port = 8080;
     [SerializeField] public OnMessageEvent OnMessage;

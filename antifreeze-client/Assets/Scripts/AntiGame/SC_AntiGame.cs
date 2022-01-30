@@ -23,6 +23,17 @@ public class SC_AntiGame : MonoBehaviour
     private List<SC_AntiGameCell> _cells = new List<SC_AntiGameCell>();
     private List<SC_AntiGameUnit> _units = new List<SC_AntiGameUnit>();
 
+
+    private void Awake()
+    {
+        _cellsContainer = new GameObject("Cells");
+        _cellsContainer.transform.parent = this.transform;
+
+        _unitsContainer = new GameObject("Units");
+        _unitsContainer.transform.parent = this.transform;
+
+    }
+
     public void ApplyServerMessage(string messageString)
     {
         Debug.Log(messageString);
