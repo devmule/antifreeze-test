@@ -10,6 +10,7 @@ using UnityEngine;
 public class SocketConnection : INetwork
 {
     private List<string> _receivedMessages = new List<string>();
+    private List<string> _messagesToSend = new List<string>();
     private MessageProtocol _messageProtocol = new MessageProtocol();
     private Socket _socketConnection;
 
@@ -103,6 +104,10 @@ public class SocketConnection : INetwork
 
         if (_socketConnection == null) { return; }
         if (!_socketConnection.Connected) { return; }
+
+       /* lock (_messagesToSend) { 
+            _messagesToSend.Add(msg); 
+        } */
 
         var bytes = Encoding.UTF8.GetBytes(msg);
 

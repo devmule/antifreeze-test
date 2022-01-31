@@ -4,7 +4,7 @@ using System.Timers;
 
 namespace AntifreezeServer.AntiGame
 {
-    class Game
+    class AntiGame
     {
 
         private Timer _timer = null;
@@ -12,40 +12,36 @@ namespace AntifreezeServer.AntiGame
         private List<Unit> _units = new List<Unit>();
 
 
-        public Game(int gridSize, int unitsCount)
+        public AntiGame(int gridSize, int unitsCount)
         {
 
-
             _grid = new Grid(gridSize);
-
-
-
             int cellsCount = _grid.Size * _grid.Size;
 
             if (unitsCount > cellsCount)
             {
-                Console.WriteLine("Can not to create more units than the cell grid contains!");
+                Console.WriteLine("Can not to create units more than cells count in grid!");
                 unitsCount = cellsCount;
             }
 
             // randomly place units
             Random rnd = new Random();
-            int emptyPositionIndex, positionIndex, i, j;
+            int randomEmptyIndex, selectedGridIndex, i, j;
+            var nonEmptyIndices = new List<int>();
+
             for (i = 0; i < unitsCount; i++)
             {
-                Cell cell;
-                emptyPositionIndex = rnd.Next(cellsCount - i);
-                positionIndex = 0;
+                selectedGridIndex = 0;
+                randomEmptyIndex = rnd.Next(cellsCount - i);
                 for (j = 0; j < cellsCount - i; j++)
                 {
-                    cell = _grid.Cells[j];
-                    if (cell.IsOccupied) continue;
-                    if (emptyPositionIndex == positionIndex) break;
-                    positionIndex++;
+                    if (nonEmptyIndices.Contains(j)) continue; // do not count occupied positions
+                    if (selectedGridIndex == randomEmptyIndex) break;
+                    selectedGridIndex++;
                 }
+                nonEmptyIndices.Add(selectedGridIndex);
 
-                cell = _grid.Cells[positionIndex]; // System.ArgumentOutOfRangeException: 'Index was out of range. Must be non-negative and less than the size of the collection. Arg_ParamName_Name'
-                Unit unit = new Unit(i, cell);
+                Unit unit = new Unit(i, _grid.Cells[selectedGridIndex]);
                 _units.Add(unit);
 
             }
@@ -56,7 +52,7 @@ namespace AntifreezeServer.AntiGame
         {
             try
             {
-                var message = MessageSerializator.Deserialize(stringMessage);
+                var message = GameMessageSerializator.Deserialize(stringMessage);
                 var orders = message.UnitsDestinationOrders;
                 ApplyUserUnput(orders);
             }
@@ -66,20 +62,21 @@ namespace AntifreezeServer.AntiGame
             }
         }
 
-        public void ApplyUserUnput(List<UnitDestinationOrderDTO> unitsDestOrders)
+        public void ApplyUserUnput(List<GameUnitDestinationOrderDTO> unitsDestOrders)
         {
             try
             {
-                if (unitsDestOrders == null) { return; }
-
-                for (int i = 0; i < unitsDestOrders.Count; i++)
+                lock (this)
                 {
-                    var order = unitsDestOrders[i];
+                    if (unitsDestOrders == null) { return; }
 
-                    var unit = _units[order.UnitUid];
-                    var cell = _grid.Cells[order.CellUid];
-
-                    unit.SetDestinationCell(cell);
+                    for (int i = 0; i < unitsDestOrders.Count; i++)
+                    {
+                        var order = unitsDestOrders[i];
+                        var unit = _units[order.UnitUid];
+                        var cell = _grid.Cells[order.CellUid];
+                        unit.SetDestinationCell(cell);
+                    }
                 }
             }
             catch (Exception e)
@@ -91,19 +88,19 @@ namespace AntifreezeServer.AntiGame
         public string GetSerializedGameState()
         {
 
-            Message msg = new Message();
+            GameUpdateMessage msg = new GameUpdateMessage();
 
             msg.GameState = new GameStateDTO();
             msg.GameState.GridSize = _grid.Size;
             msg.GameState.UnitsCount = _units.Count;
 
-            msg.UnitsStatuses = new List<UnitStatusDTO>();
+            msg.UnitsStatuses = new List<GameUnitStatusDTO>();
 
             for (int i = 0; i < _units.Count; i++)
             {
 
                 var unit = _units[i];
-                var unitStatus = new UnitStatusDTO();
+                var unitStatus = new GameUnitStatusDTO();
 
                 unitStatus.Uid = unit.Uid;
                 unitStatus.X = unit.Coords.X;
@@ -114,7 +111,7 @@ namespace AntifreezeServer.AntiGame
 
             }
 
-            string messageString = MessageSerializator.Serialize(msg);
+            string messageString = GameMessageSerializator.Serialize(msg);
             return messageString;
 
         }
@@ -134,36 +131,40 @@ namespace AntifreezeServer.AntiGame
 
         }
 
-        public event Action<string> OnTick;
+        public event Action<string> OnGameUpdated;
 
         private void _tick()
         {
 
-            var dt = (float)_timer.Interval / 1000;
-
-            for (int i = 0; i < _units.Count; i++)
+            // === update game ===
+            lock (this)
             {
-                _units[i].Tick(_grid, dt);
+                var dt = (float)_timer.Interval / 1000;
+                for (int i = 0; i < _units.Count; i++) { _units[i].Tick(_grid, dt); }
             }
 
 
-            Message msg = new Message();
+            // === send update to clients === 
 
-            msg.UnitsStatuses = new List<UnitStatusDTO>();
-
+            GameUpdateMessage updates = new GameUpdateMessage();
+            updates.UnitsStatuses = new List<GameUnitStatusDTO>();
             for (int i = 0; i < _units.Count; i++)
             {
                 var unit = _units[i];
-                var unitStatus = new UnitStatusDTO();
+                if (!unit.IsUpdated) continue;
+
+                unit.IsUpdated = false;
+
+                var unitStatus = new GameUnitStatusDTO();
                 unitStatus.Uid = unit.Uid;
                 unitStatus.IsMoving = unit.IsMoving;
                 unitStatus.X = unit.Coords.X;
                 unitStatus.Y = unit.Coords.Y;
-                msg.UnitsStatuses.Add(unitStatus);
+                updates.UnitsStatuses.Add(unitStatus);
             }
 
-            string messageString = MessageSerializator.Serialize(msg);
-            OnTick(messageString);
+            string serializedUpdates = GameMessageSerializator.Serialize(updates);
+            OnGameUpdated?.Invoke(serializedUpdates);
 
         }
 

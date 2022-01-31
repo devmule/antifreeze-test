@@ -15,7 +15,7 @@ public class SC_AntiGame : MonoBehaviour
     [SerializeField] public float DistanceBetweenCells = 1.0f;
     [SerializeField] public OnUserGaveOrdersToUnitsEvent OnUserGaveOrdersToUnits;
 
-    private List<UnitDestinationOrderDTO> _unitsDestinationOrders = new List<UnitDestinationOrderDTO>();
+    private List<GameUnitDestinationOrderDTO> _unitsDestinationOrders = new List<GameUnitDestinationOrderDTO>();
 
     private int _GridSize = 0;
     private GameObject _cellsContainer;
@@ -34,21 +34,21 @@ public class SC_AntiGame : MonoBehaviour
 
     }
 
-    public void ApplyServerMessage(string messageString)
+    public void ApplyServerMessage(string serializedUpdates)
     {
         try
         {
-            var message = MessageSerializator.Deserialize(messageString);
+            var updates = GameMessageSerializator.Deserialize(serializedUpdates);
 
-            if (message.GameState != null) { 
-                _initGameState(message.GameState); 
+            if (updates.GameState != null) { 
+                _initGameState(updates.GameState); 
             }
 
-            if (message.UnitsStatuses != null) { 
-                for (int i = 0; i < message.UnitsStatuses.Count; i++)
+            if (updates.UnitsStatuses != null) { 
+                for (int i = 0; i < updates.UnitsStatuses.Count; i++)
                 {
-                    var unitStatus = message.UnitsStatuses[i];
-                    _setUnitStatus(message.UnitsStatuses[i]);
+                    var unitStatus = updates.UnitsStatuses[i];
+                    _updateUnitStatus(unitStatus);
                 }
             }
 
@@ -62,14 +62,18 @@ public class SC_AntiGame : MonoBehaviour
 
     public void SetOrderToUnit(int unitUid, int destinsationCellUid)
     {
-        UnitDestinationOrderDTO unitOrder = _unitsDestinationOrders.Find(udo => udo.UnitUid == unitUid);
-        if (unitOrder == null) {
-            unitOrder = new UnitDestinationOrderDTO();
-        }
-        unitOrder.UnitUid = unitUid;
-        unitOrder.CellUid = destinsationCellUid;
+        lock (_unitsDestinationOrders)
+        {
+            GameUnitDestinationOrderDTO unitOrder = _unitsDestinationOrders.Find(udo => udo.UnitUid == unitUid);
+            if (unitOrder == null)
+            {
+                unitOrder = new GameUnitDestinationOrderDTO();
+            }
+            unitOrder.UnitUid = unitUid;
+            unitOrder.CellUid = destinsationCellUid;
 
-        _unitsDestinationOrders.Add(unitOrder);
+            _unitsDestinationOrders.Add(unitOrder);
+        }
     }
 
     private void _initGameState(GameStateDTO gameState)
@@ -114,7 +118,7 @@ public class SC_AntiGame : MonoBehaviour
         return new Vector3(x - gs, 0.0f, gs - y);
     }
 
-    private void _setUnitStatus(UnitStatusDTO unitStatus)
+    private void _updateUnitStatus(GameUnitStatusDTO unitStatus)
     {
         var unit = _units.Find(u => u.Uid == unitStatus.Uid);
         if (unit == null) { return; }
@@ -130,16 +134,20 @@ public class SC_AntiGame : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
-        if (_unitsDestinationOrders.Count > 0)
+
+        lock (_unitsDestinationOrders)
         {
-            var message = new Message();
-            message.UnitsDestinationOrders = _unitsDestinationOrders;
-            var messageString = MessageSerializator.Serialize(message);
-            OnUserGaveOrdersToUnits?.Invoke(messageString);
-            _unitsDestinationOrders.Clear();
-            _unitsDestinationOrders.TrimExcess();
+            if (_unitsDestinationOrders.Count > 0)
+            {
+                var message = new GameUpdateMessage();
+                message.UnitsDestinationOrders = _unitsDestinationOrders;
+                var messageString = GameMessageSerializator.Serialize(message);
+                OnUserGaveOrdersToUnits?.Invoke(messageString);
+                _unitsDestinationOrders.Clear();
+                _unitsDestinationOrders.TrimExcess();
+            }
         }
+        
 
     }
 }

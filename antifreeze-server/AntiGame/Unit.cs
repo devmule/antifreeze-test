@@ -5,13 +5,17 @@ using System.Numerics;
 namespace AntifreezeServer.AntiGame
 {
 
-
     class Unit
     {
 
-        private static float _speed = 1f; // cells per second
-        private static float _pathFindingPeriod = 0.2f; // seconds between re-searching path
-        private static float _timeToOkWithNearestAvailableCell = 1f; // seconds unit continuing researching path to destination
+        // moving speed - cells per second
+        private static float _speed = 1f;
+
+        // seconds between re-searching path when can not reach destination cell directly
+        private static float _pathFindingPeriod = 0.2f;
+
+        // seconds unit continuing re-searching path to destination
+        private static float _timeToOkWithNearestAvailableCell = 1f; 
 
         public int Uid { get; private set; }
 
@@ -19,6 +23,9 @@ namespace AntifreezeServer.AntiGame
 
         public bool IsMoving { get { return _neighbourCell != null; } }
 
+        public bool IsUpdated = false;
+
+        // moving logic variables
         private Cell _destinationCell = null;
         private Cell _neighbourCell = null;
         private Cell _currentCell = null;
@@ -26,10 +33,12 @@ namespace AntifreezeServer.AntiGame
         private float _pathFindingPeriodValue = 0.0f;
         private float _timeToOkWithNearestCellValue = 0.0f;
 
-        public Unit(int uid, Cell initialPosition)
+        public Unit(int uid, Cell initialCell)
         {
             Uid = uid;
-            _setCurrentCell(initialPosition);
+            _currentCell = initialCell;
+            _currentCell.IsOccupied = true;
+            Coords = _currentCell.Coords;
         }
 
         public void Tick(Grid grid, float dt)
@@ -41,6 +50,8 @@ namespace AntifreezeServer.AntiGame
             {
 
                 _pathFindingPeriodValue += dt;
+                _timeToOkWithNearestCellValue += dt;
+
                 if (_pathFindingPeriodValue < _pathFindingPeriod) return;
 
                 _pathFindingPeriodValue = 0;
@@ -48,7 +59,6 @@ namespace AntifreezeServer.AntiGame
                 var path = grid.FindPath(_currentCell, _destinationCell, cell => cell.IsOccupied && cell != _currentCell);
                 if (path.Count < 2)
                 {
-                    _timeToOkWithNearestCellValue += dt;
                     if (_timeToOkWithNearestCellValue >= _timeToOkWithNearestAvailableCell)
                     {
                         _destinationCell = null;
@@ -69,28 +79,14 @@ namespace AntifreezeServer.AntiGame
             if (_pathToNeighbourFactor > 1f) { _pathToNeighbourFactor = 1f; }
 
             Coords = _currentCell.Coords * (1 - _pathToNeighbourFactor) + _neighbourCell.Coords * _pathToNeighbourFactor;
+            IsUpdated = true;
 
             if (_pathToNeighbourFactor < 1) return;
 
-            _pathToNeighbourFactor = 0f;
             _currentCell = _neighbourCell;
             _neighbourCell = null;
 
             if (_currentCell == _destinationCell) { _destinationCell = null; }
-        }
-
-        private void _setCurrentCell(Cell cell)
-        {
-            if (cell.IsOccupied) return;
-
-            if (_currentCell != null) 
-            { 
-                _currentCell.IsOccupied = false; 
-            }
-            _currentCell = cell;
-            _currentCell.IsOccupied = true;
-            Coords = _currentCell.Coords;
-
         }
 
         public void SetDestinationCell(Cell cell)

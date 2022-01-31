@@ -21,7 +21,7 @@ namespace AntifreezeServer
 
 
             Networking.INetwork server = new Networking.SocketServer();
-            AntiGame.Game game = new AntiGame.Game(gridSize, unitsCount);
+            AntiGame.AntiGame game = new AntiGame.AntiGame(gridSize, unitsCount);
 
             // when new client connected
             server.OnClientConnected += (sender, e) => {
@@ -37,7 +37,7 @@ namespace AntifreezeServer
 
 
             // when game updated -> send changes to all clients
-            game.OnTick += message => server.Broadcast(message);
+            game.OnGameUpdated += message => server.Broadcast(message);
 
 
             // start server and game
