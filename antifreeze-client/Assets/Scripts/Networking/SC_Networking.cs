@@ -35,7 +35,7 @@ public class SC_Networking : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        var messages = _networkConnection.CollectMessages();
+        var messages = _networkConnection.CollectReceivedMessages();
 
         for (int i = 0; i < messages.Count; i++)
         {

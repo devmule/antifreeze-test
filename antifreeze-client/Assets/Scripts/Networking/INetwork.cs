@@ -4,7 +4,7 @@ using System.Collections.Generic;
 public interface INetwork
 {
 
-    public List<string> CollectMessages();
+    public List<string> CollectReceivedMessages();
 
     public void Start(string host, int port);
 

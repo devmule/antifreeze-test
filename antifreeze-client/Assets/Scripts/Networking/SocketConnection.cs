@@ -9,6 +9,8 @@ using UnityEngine;
 
 public class SocketConnection : INetwork
 {
+
+    private ManualResetEvent _sendingMessageAddedEvent = new ManualResetEvent(false);
     private List<string> _receivedMessages = new List<string>();
     private List<string> _messagesToSend = new List<string>();
     private MessageProtocol _messageProtocol = new MessageProtocol();
@@ -25,52 +27,52 @@ public class SocketConnection : INetwork
         lock (_receivedMessages) { _receivedMessages.Add(message); }
     }
 
-    private void _listenConnection(System.Object obj)
+    private void _startReceivingLoop()
     {
+        int bytesRec;
+        byte[] buffer = new byte[1024 * 4];
+
         try
         {
-
-            var iPEndPoint = (IPEndPoint)obj;
-
-            _socketConnection = new Socket(iPEndPoint.Address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            _socketConnection.Connect(iPEndPoint);
-
-            Debug.Log("Socket connected to " + _socketConnection.RemoteEndPoint.ToString());
-
-            int bytesRec;
-            byte[] buffer = new byte[1024 * 4];
-
-            try
+            while (_socketConnection != null && (bytesRec = _socketConnection.Receive(buffer)) > 0)
             {
-                while (_socketConnection != null && (bytesRec = _socketConnection.Receive(buffer)) > 0)
-                {
-
-                    byte[] data = new byte[bytesRec];
-
-
-                    Array.Copy(buffer, 0, data, 0, bytesRec);
-                    _messageProtocol.DataReceived(data);
-
-                }
+                byte[] data = new byte[bytesRec];
+                Array.Copy(buffer, 0, data, 0, bytesRec);
+                _messageProtocol.DataReceived(data);
             }
-            catch (SocketException se)
-            {
-                Debug.LogError(se.ToString());
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e.ToString());
-            }
-
         }
         catch (Exception e)
         {
-            Debug.LogError("Unexpected exception: " + e.ToString());
+            Debug.LogError(e.ToString());
         }
-
     }
 
-    public List<string> CollectMessages()
+    private void _startTansmittingLoop()
+    {
+        try
+        {
+            while (_socketConnection != null)
+            {
+                while (_messagesToSend.Count > 0)
+                {
+                    lock (_messagesToSend)
+                    {
+                        var message = _messagesToSend[0];
+                        _messagesToSend.RemoveAt(0);
+                        var bytes = Encoding.UTF8.GetBytes(message);
+                        _socketConnection.Send(MessageProtocol.WrapData(bytes));
+                    }
+                    _sendingMessageAddedEvent.WaitOne();
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e.ToString());
+        }
+    }
+
+    public List<string> CollectReceivedMessages()
     {
         var returnList = new List<string>();
 
@@ -92,11 +94,39 @@ public class SocketConnection : INetwork
 
     public void Start(string hostAddress, int port)
     {
-        var ipHostInfo = Dns.GetHostEntry(hostAddress);
-        var iPEndPoint = new IPEndPoint(ipHostInfo.AddressList[0], port);
 
-        var t = new Thread(new ParameterizedThreadStart(_listenConnection));
-        t.Start(iPEndPoint);
+        if (_socketConnection != null) return;
+
+        try
+        {
+
+            var ipHostInfo = Dns.GetHostEntry(hostAddress);
+            var iPEndPoint = new IPEndPoint(ipHostInfo.AddressList[0], port);
+
+            _socketConnection = new Socket(iPEndPoint.Address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+            // connect async with callback
+            _socketConnection.BeginConnect(iPEndPoint, new AsyncCallback((IAsyncResult ar) => {
+
+                _socketConnection.EndConnect(ar);
+                Debug.Log("Socket connected to " + _socketConnection.RemoteEndPoint.ToString());
+
+                // when connected, begin sending and listening
+
+                var receivingThread = new Thread(new ThreadStart(_startReceivingLoop));
+                receivingThread.Start();
+
+                var transmittingThread = new Thread(new ThreadStart(_startTansmittingLoop));
+                transmittingThread.Start();
+
+            }), null);
+
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Unexpected exception: " + e.ToString());
+        }
+
     }
 
     public void Send(string msg)
@@ -105,13 +135,11 @@ public class SocketConnection : INetwork
         if (_socketConnection == null) { return; }
         if (!_socketConnection.Connected) { return; }
 
-       /* lock (_messagesToSend) { 
+       lock (_messagesToSend) { 
             _messagesToSend.Add(msg); 
-        } */
+            _sendingMessageAddedEvent.Set();
+       }
 
-        var bytes = Encoding.UTF8.GetBytes(msg);
-
-        _socketConnection.Send(MessageProtocol.WrapData(bytes));
 
     }
 
