@@ -84,9 +84,7 @@ public class SocketConnection : INetwork
                 _receivedMessages.RemoveAt(0);
                 returnList.Add(message);
             }
-
             _receivedMessages.Clear();
-
         }
 
         return returnList;
@@ -111,7 +109,7 @@ public class SocketConnection : INetwork
                 _socketConnection.EndConnect(ar);
                 Debug.Log("Socket connected to " + _socketConnection.RemoteEndPoint.ToString());
 
-                // when connected, begin sending and listening
+                // when connected, begin transmitting and receiving threads
 
                 var receivingThread = new Thread(new ThreadStart(_startReceivingLoop));
                 receivingThread.Start();

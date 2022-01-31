@@ -13,24 +13,23 @@ public class SC_Networking : MonoBehaviour
     public class OnMessageEvent : UnityEvent<string>{ }
 
 
-    [SerializeField] public string HostAddress = "localhost";
-    [SerializeField] public int Port = 8080;
+    [SerializeField] public string Host = "localhost";
+    [SerializeField] public string Port = "8080";
     [SerializeField] public OnMessageEvent OnMessage;
     private INetwork _networkConnection = new SocketConnection();
 
+    public void ConnectToServer()
+    {
+        _networkConnection.Start(Host, int.Parse(Port, System.Globalization.NumberStyles.Integer));
+    }
 
     public void SendMessageToServer(string msg)
     {
         _networkConnection.Send(msg);
     }
 
-    // Start is called before the first frame update
-    void Start()
-    {
-        _networkConnection.Start(HostAddress, Port);
-    }
-
-
+    public void SetHost(string host) { Host = host; }
+    public void SetPort(string port) { Port = port; }
 
     // Update is called once per frame
     void Update()

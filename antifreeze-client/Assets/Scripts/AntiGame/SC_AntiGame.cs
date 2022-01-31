@@ -79,6 +79,7 @@ public class SC_AntiGame : MonoBehaviour
     private void _initGameState(GameStateDTO gameState)
     {
 
+        // create new cells container, delete old
         if (_cellsContainer != null) { Destroy(_cellsContainer); }
         _cellsContainer = new GameObject("Cells");
         _cellsContainer.transform.parent = this.transform;
@@ -96,8 +97,9 @@ public class SC_AntiGame : MonoBehaviour
             cell.SetUid(i);
             _cells.Add(cell);
         }
-        
 
+
+        // create new unity container, delete old
         if (_unitsContainer != null) { Destroy(_unitsContainer); }
         _unitsContainer = new GameObject("Units");
         _unitsContainer.transform.parent = this.transform;
@@ -115,20 +117,17 @@ public class SC_AntiGame : MonoBehaviour
     private Vector3 _convertGameCoordsToUnityCoords(float x, float y)
     {
         var gs = ((float)_GridSize - 1) / 2;
-        return new Vector3(x - gs, 0.0f, gs - y);
+        return new Vector3( (x - gs) * DistanceBetweenCells, 0.0f, (gs - y) * DistanceBetweenCells );
     }
 
     private void _updateUnitStatus(GameUnitStatusDTO unitStatus)
     {
         var unit = _units.Find(u => u.Uid == unitStatus.Uid);
-        if (unit == null) { return; }
+        if (unit == null) return;
+
         unit.gameObject.transform.position = _convertGameCoordsToUnityCoords(unitStatus.X, unitStatus.Y);
         unit.SetMoving(unitStatus.IsMoving);
-    }
 
-    // Start is called before the first frame update
-    void Start()
-    {
     }
 
     // Update is called once per frame
