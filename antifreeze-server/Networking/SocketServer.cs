@@ -67,8 +67,6 @@ namespace AntifreezeServer.Networking
         public void Close()
         {
 
-            Console.WriteLine("Client disconnected!");
-
             if (_socketConnection == null) return;
 
             _socketConnection.Shutdown(SocketShutdown.Both);
@@ -137,7 +135,6 @@ namespace AntifreezeServer.Networking
                 {
 
                     Socket clientSocket = listener.Accept();
-                    Console.WriteLine("Client connected!");
 
                     var clientConnection = new SocketClientConnection(clientSocket);
                     clientConnection.OnClose += (sencer, e) => _clients.Remove(clientConnection);

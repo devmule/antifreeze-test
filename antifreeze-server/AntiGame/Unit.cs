@@ -17,9 +17,9 @@ namespace AntifreezeServer.AntiGame
 
         public bool IsMoving { get { return _destinationCell != null; } }
 
-        private Cell? _destinationCell = null;
-        private Cell? _neighbourCell = null;
-        private Cell? _currentCell = null;
+        private Cell _destinationCell = null;
+        private Cell _neighbourCell = null;
+        private Cell _currentCell = null;
         private float _pathToNeighbourFactor = 0.0f;
 
         public Unit(int uid, Cell initialPosition)

@@ -5,15 +5,12 @@ namespace AntifreezeServer
     class Program
     {
 
-        private static Networking.INetwork server;
-        private static AntiGame.Game game;
-
         static void Main(string[] args)
         {
 
             Random rnd = new Random();
 
-            int tps = 15;                       // ticks per second
+            int tps = 30;                       // ticks per second
             int gridSize = rnd.Next(7, 13);     // NxN grid, 7 <= N <= 12
             int unitsCount = rnd.Next(1, 6);    // 1 <= units <= 5
 
@@ -23,34 +20,30 @@ namespace AntifreezeServer
             Console.WriteLine();
 
 
-            server = new Networking.SocketServer();
-            server.OnClientConnected += Server_OnClientConnected;
+            Networking.INetwork server = new Networking.SocketServer();
+            AntiGame.Game game = new AntiGame.Game(gridSize, unitsCount);
+
+            // when new client connected
+            server.OnClientConnected += (sender, e) => {
+
+                // subscribe game to messages from client
+                e.ClientConnection.OnMessageReceived += (sender, e) => game.ApplyClientMessage(e.Message);
+
+                // send game state to client
+                var gameStateString = game.GetSerializedGameState();
+                e.ClientConnection.Send(gameStateString);
+
+            };
 
 
-            game = new AntiGame.Game(gridSize, unitsCount);
-            game.OnTick += Game_OnTick;
+            // when game updated -> send changes to all clients
+            game.OnTick += message => server.Broadcast(message);
 
 
+            // start server and game
             server.Start("localhost", 8080);
             game.Start(tps);
 
-        }
-
-        private static void Server_OnClientConnected(object sender, Networking.ClientConnectedEventArgs e)
-        {
-            e.ClientConnection.OnMessageReceived += ClientConnection_OnMessageReceived;
-            var gameStateString = game.GetSerializedGameState();
-            e.ClientConnection.Send(gameStateString);
-        }
-
-        private static void ClientConnection_OnMessageReceived(object sender, Networking.OnMessageEventArgs e)
-        {
-            game.ApplyClientMessage(e.Message);
-        }
-
-        private static void Game_OnTick(string message)
-        {
-            server.Broadcast(message);
         }
     }
 }

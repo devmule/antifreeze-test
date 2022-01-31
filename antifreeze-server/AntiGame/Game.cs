@@ -48,8 +48,6 @@ namespace AntifreezeServer.AntiGame
                 Unit unit = new Unit(i, cell);
                 _units.Add(unit);
 
-                unit.SetDestinationCell(_grid.Cells[0]);
-
             }
 
         }

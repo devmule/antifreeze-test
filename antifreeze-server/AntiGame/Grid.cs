@@ -81,7 +81,10 @@ namespace AntifreezeServer.AntiGame
                 var currentCell = frontierCells[0];
                 frontierCells.RemoveAt(0);
 
-                currentDistance = Vector2.Distance(destinationCell.Coords, currentCell.Coords); // System.NullReferenceException: 'Object reference not set to an instance of an object.'
+                if (currentCell == null) continue;
+
+                currentDistance = Vector2.Distance(destinationCell.Coords, currentCell.Coords); 
+
                 if (currentDistance < nearestDistance)
                 {
                     nearestAvailableCell = currentCell;

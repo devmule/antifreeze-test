@@ -36,7 +36,6 @@ public class SC_AntiGame : MonoBehaviour
 
     public void ApplyServerMessage(string messageString)
     {
-        Debug.Log(messageString);
         try
         {
             var message = MessageSerializator.Deserialize(messageString);
@@ -120,7 +119,7 @@ public class SC_AntiGame : MonoBehaviour
         var unit = _units.Find(u => u.Uid == unitStatus.Uid);
         if (unit == null) { return; }
         unit.gameObject.transform.position = _convertGameCoordsToUnityCoords(unitStatus.X, unitStatus.Y);
-        unit.IsMoving = unitStatus.IsMoving;
+        unit.SetMoving(unitStatus.IsMoving);
     }
 
     // Start is called before the first frame update
