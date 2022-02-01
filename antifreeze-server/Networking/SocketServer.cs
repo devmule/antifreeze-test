@@ -47,6 +47,7 @@ namespace AntifreezeServer.Networking
             }
             catch (SocketException se)
             {
+                // client disconnected forcefully
                 // Console.WriteLine(se.ToString());
             }
             catch (Exception e)
