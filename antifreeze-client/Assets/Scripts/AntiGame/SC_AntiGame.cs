@@ -34,7 +34,7 @@ public class SC_AntiGame : MonoBehaviour
 
     }
 
-    public void ApplyServerMessage(string serializedUpdates)
+    public void ApplyMessageFromServer(string serializedUpdates)
     {
         try
         {
@@ -62,18 +62,17 @@ public class SC_AntiGame : MonoBehaviour
 
     public void SetOrderToUnit(int unitUid, int destinsationCellUid)
     {
-        lock (_unitsDestinationOrders)
-        {
-            GameUnitDestinationOrderDTO unitOrder = _unitsDestinationOrders.Find(udo => udo.UnitUid == unitUid);
-            if (unitOrder == null)
-            {
-                unitOrder = new GameUnitDestinationOrderDTO();
-            }
-            unitOrder.UnitUid = unitUid;
-            unitOrder.CellUid = destinsationCellUid;
 
-            _unitsDestinationOrders.Add(unitOrder);
+        GameUnitDestinationOrderDTO unitOrder = _unitsDestinationOrders.Find(udo => udo.UnitUid == unitUid);
+        if (unitOrder == null)
+        {
+            unitOrder = new GameUnitDestinationOrderDTO();
         }
+        unitOrder.UnitUid = unitUid;
+        unitOrder.CellUid = destinsationCellUid;
+
+        _unitsDestinationOrders.Add(unitOrder);
+
     }
 
     private void _initGameState(GameStateDTO gameState)
@@ -127,26 +126,21 @@ public class SC_AntiGame : MonoBehaviour
 
         unit.gameObject.transform.position = _convertGameCoordsToUnityCoords(unitStatus.X, unitStatus.Y);
         unit.SetMoving(unitStatus.IsMoving);
-
     }
 
     // Update is called once per frame
     void Update()
     {
 
-        lock (_unitsDestinationOrders)
+        if (_unitsDestinationOrders.Count > 0)
         {
-            if (_unitsDestinationOrders.Count > 0)
-            {
-                var message = new GameUpdateMessage();
-                message.UnitsDestinationOrders = _unitsDestinationOrders;
-                var messageString = GameMessageSerializator.Serialize(message);
-                OnUserGaveOrdersToUnits?.Invoke(messageString);
-                _unitsDestinationOrders.Clear();
-                _unitsDestinationOrders.TrimExcess();
-            }
+            var message = new GameUpdateMessage();
+            message.UnitsDestinationOrders = _unitsDestinationOrders;
+            var messageString = GameMessageSerializator.Serialize(message);
+            OnUserGaveOrdersToUnits?.Invoke(messageString);
+            _unitsDestinationOrders.Clear();
+            _unitsDestinationOrders.TrimExcess();
         }
-        
 
     }
 }

@@ -1367,7 +1367,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 834003174}
         m_TargetAssemblyTypeName: SC_AntiGame, Assembly-CSharp
-        m_MethodName: ApplyServerMessage
+        m_MethodName: ApplyMessageFromServer
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

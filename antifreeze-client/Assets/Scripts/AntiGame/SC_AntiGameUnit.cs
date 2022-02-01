@@ -17,8 +17,6 @@ public class SC_AntiGameUnit : MonoBehaviour
 
     public int Uid { get; private set; }
     public void SetUid(int uid) { Uid = uid; }
-    public bool IsMoving { get; private set; } = false;
-    public bool Selected { get; private set; } = false;
 
     public void SetMoving(bool isMoving) 
     {

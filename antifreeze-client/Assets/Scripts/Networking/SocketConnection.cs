@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -31,7 +32,6 @@ public class SocketConnection : INetwork
     {
         int bytesRec;
         byte[] buffer = new byte[1024 * 4];
-
         try
         {
             while (_socketConnection != null && (bytesRec = _socketConnection.Receive(buffer)) > 0)
@@ -53,17 +53,22 @@ public class SocketConnection : INetwork
         {
             while (_socketConnection != null)
             {
-                while (_messagesToSend.Count > 0)
-                {
-                    lock (_messagesToSend)
-                    {
-                        var message = _messagesToSend[0];
-                        _messagesToSend.RemoveAt(0);
-                        var bytes = Encoding.UTF8.GetBytes(message);
-                        _socketConnection.Send(MessageProtocol.WrapData(bytes));
-                    }
-                    _sendingMessageAddedEvent.WaitOne();
+                List<string> cloneList;
+                lock (_messagesToSend) {
+                    cloneList = _messagesToSend.ToList();
+                    _messagesToSend.Clear();
                 }
+
+                _sendingMessageAddedEvent.Reset();
+
+                for (int i = 0; i < cloneList.Count; i++)
+                {
+                    var message = cloneList[i];
+                    var bytes = Encoding.UTF8.GetBytes(message);
+                    _socketConnection.Send(MessageProtocol.WrapData(bytes));
+                }
+
+                _sendingMessageAddedEvent.WaitOne();
             }
         }
         catch (Exception e)
@@ -76,12 +81,10 @@ public class SocketConnection : INetwork
     {
         var returnList = new List<string>();
 
-        lock (_receivedMessages) { 
-
-            while (_receivedMessages.Count > 0)
+        lock (_receivedMessages) {
+            for (int i = 0; i < _receivedMessages.Count; i++)
             {
-                var message = _receivedMessages[0];
-                _receivedMessages.RemoveAt(0);
+                var message = _receivedMessages[i];
                 returnList.Add(message);
             }
             _receivedMessages.Clear();
